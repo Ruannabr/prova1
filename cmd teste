@@ -1,0 +1,128 @@
+1. Configurar o ambiente
+Execute os comandos:
+
+python -m venv .venv
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.venv\Scripts\activate
+pip install django
+---------------------------------------------------------------------------------
+2. Criar o projeto e o aplicativo
+Comandos:
+
+django-admin startproject setup .
+python manage.py startapp todos
+-------------------------------------------------------------------------------
+3. Configure o aplicativo no projeto
+No arquivo setup/settings.py, adicione todosà lista de INSTALLED_APPS:
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'todos',  # App criado
+]
+-----------------------------------------------------------------------------
+4. Criar o modelo
+Nenhum arquivo todos/models.py, define o modelo Todo:
+
+
+from django.db import models
+
+class Todo(models.Model):
+    title = models.CharField(max_length=100, null=False, blank=False)
+    created_at = models.DateField(auto_now_add=True, null=False, blank=False)
+    deadline = models.DateField(null=False, blank=False)
+    finished_at = models.DateField(null=True, blank=True)
+-----------------------------------------------------------------------
+Crie e aplique as migrações:
+
+
+python manage.py makemigrations
+python manage.py migrate
+-------------------------------------------------------------------------
+5. Criar como Class-Based Views
+No arquivo todos/views.py, crie as CBVs para o CRUD:
+
+from django.urls import reverse_lazy
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from .models import Todo
+
+class TodoListView(ListView):
+    model = Todo
+
+class TodoCreateView(CreateView):
+    model = Todo
+    fields = ['title', 'deadline']
+    success_url = reverse_lazy('todo_list')
+
+class TodoUpdateView(UpdateView):
+    model = Todo
+    fields = ['title', 'deadline']
+    success_url = reverse_lazy('todo_list')
+
+class TodoDeleteView(DeleteView):
+    model = Todo
+    success_url = reverse_lazy('todo_list')
+-------------------------------------------------------------------------------------------------
+
+6. Configurar como URLs
+No arquivo setup/urls.py, importe e mapeie as visualizações:
+
+from django.urls import path
+from todos.views import TodoListView, TodoCreateView, TodoUpdateView, TodoDeleteView
+
+urlpatterns = [
+    path('', TodoListView.as_view(), name='todo_list'),
+    path('create/', TodoCreateView.as_view(), name='todo_create'),
+    path('update/<int:pk>/', TodoUpdateView.as_view(), name='todo_update'),
+    path('delete/<int:pk>/', TodoDeleteView.as_view(), name='todo_delete'),
+]
+
+------------------------------------------------------------------------------------
+7. Criar os templates HTML
+Crie a pasta todos/templates/todos/e adicione os arquivos:
+----------------------
+todo_list.html:
+
+<h1>Lista de Tarefas</h1>
+<ul>
+    {% for todo in object_list %}
+        <li>
+            {{ todo.title }} - 
+            <a href="{% url 'todo_update' todo.pk %}">Editar</a> | 
+            <a href="{% url 'todo_delete' todo.pk %}">Deletar</a>
+        </li>
+    {% endfor %}
+</ul>
+<a href="{% url 'todo_create' %}">Criar Nova Tarefa</a>
+
+-------------------------------
+todo_form.html:
+
+<h1>{% if object %}Atualizar{% else %}Criar{% endif %} Tarefa</h1>
+<form method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Salvar</button>
+</form>
+<a href="{% url 'todo_list' %}">Cancelar</a>
+
+------------------------------------
+todo_confirm_delete.html:
+
+<h1>Deletar Tarefa</h1>
+<p>Você tem certeza que deseja deletar a tarefa "{{ object.title }}"?</p>
+<form method="POST">
+    {% csrf_token %}
+    <button type="submit">Deletar</button>
+</form>
+<a href="{% url 'todo_list' %}">Cancelar</a>
+
+------------------------------------------------------------------------------------
+8. Rodar ou servidor
+Executar:
+
+python manage.py runserver
